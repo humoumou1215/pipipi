@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 1 课 · 地形图:pi 的三层蛋糕</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+
+<header class="lesson-header">
+	<div class="lesson-meta">第 1 课 · 预计 15 分钟</div>
+	<h1 class="lesson-title">地形图:pi 的三层蛋糕</h1>
+	<p class="lesson-sub">学任何大仓库,第一步都是先看骨架,再看血肉。本课给你一张永不迷路的地图。</p>
+</header>
+
+<div class="outcomes">
+	<strong>本课结束,你能:</strong>
+	<ul>
+		<li>说出 pi 的三个核心层,以及每层解决什么问题</li>
+		<li>在仓库里找到扩展开发的四个关键位置</li>
+		<li>说出加载一个扩展的两种方式</li>
+	</ul>
+</div>
+
+<h2>1 · 为什么先学地图</h2>
+<p>你的目标是基于 pi <strong>做拓展开发、构建自己的 agent</strong>。就像去陌生城市之前先看地图:不需要记住每栋楼,但要分清"市中心在哪、我要去哪个区"。pi-mono 有 9 个包,但你的主战场只有三个核心层,其余是支撑设施。</p>
+
+<h2>2 · 知识:三层蛋糕</h2>
+
+<div class="stack">
+	<div class="stack-layer">
+		<span class="layer-name">产品层 · coding-agent</span>
+		<br><span class="layer-path">packages/coding-agent</span>
+		<br>CLI、TUI、会话管理、权限——以及<strong>扩展系统</strong>。你要写的扩展挂在这里。
+	</div>
+	<div class="stack-arrow"><span class="dir">依赖 ▲</span></div>
+	<div class="stack-layer">
+		<span class="layer-name">运行时 · agent</span>
+		<br><span class="layer-path">packages/agent</span>
+		<br>agent 循环:反复把对话发给 LLM,执行工具,直到任务完成。
+	</div>
+	<div class="stack-arrow"><span class="dir">依赖 ▲</span></div>
+	<div class="stack-layer">
+		<span class="layer-name">统一接口 · ai</span>
+		<br><span class="layer-path">packages/ai</span>
+		<br>一套 API 调用几十家 LLM 提供商:流式、工具调用、图像模型。
+	</div>
+</div>
+
+<p>调用方向是<strong>从上往下</strong>:product 层用 agent 层,agent 层用 ai 层,ai 层用各家厂商的 HTTP API。另有一些旁支包:<code>packages/tui</code>(终端 UI 库)、<code>packages/protocol</code>/<code>client</code>/<code>server</code>(RPC)、<code>packages/storage</code>(持久化)——它们支撑产品层,但不是扩展开发的主战场。<a href="../../../README.md">仓库 README</a> 的包表格是最权威的概览。</p>
+
+<div class="callout">
+	<div class="callout-title">关键洞察</div>
+	<p>你的扩展站在 <strong>coding-agent 的扩展系统</strong>上,通过它调用 <strong>agent</strong> 和 <strong>ai</strong> 的能力。所以学习路线很自然:先看地图(本课)→ 补 TypeScript 阅读能力 → 补 LLM 概念 → 读 ai 层 → 读 agent 层 → 写扩展。一步一个台阶。</p>
+</div>
+
+<p>不懂的术语(provider、agent loop、tool calling、streaming、ctx…)先不用背,<a href="../reference/glossary.html">术语表</a>已经备好,随查随用。</p>
+
+<h2>3 · 技能:仓库寻宝</h2>
+<p>下面 4 个任务,<strong>先自己找,再揭晓</strong>。用 <code>ls</code>、<code>find</code>、<code>rg</code> 都行。找对位置的回报是:以后你写扩展时,知道去哪里抄模板、查文档。</p>
+
+<div class="task">
+	<div class="task-number">任务 1</div>
+	<p><strong>找出"所有 LLM 提供商实现"所在的文件夹。</strong><br>
+	提示:里面应有 <code>anthropic.ts</code>、<code>openai.ts</code>、<code>google.ts</code> 这样的文件。</p>
+	<details><summary>揭晓答案</summary>
+		<p><span class="answer-path">packages/ai/src/providers/</span></p>
+		<p><strong>为什么重要:</strong>将来你要接入自己的模型厂商(自定义 provider),就是照着这些文件的模式写一个 <code>xxx.ts</code>。扩展示例里有一个现成的 <code>custom-provider-anthropic/</code> 可以参考。</p>
+	</details>
+</div>
+
+<div class="task">
+	<div class="task-number">任务 2</div>
+	<p><strong>找出"agent 循环"的实现文件。</strong><br>
+	提示:在 <code>packages/agent/src/</code> 下,文件名非常直白。</p>
+	<details><summary>揭晓答案</summary>
+		<p><span class="answer-path">packages/agent/src/agent-loop.ts</span></p>
+		<p><strong>为什么重要:</strong>这是 agent 的心脏——"发消息给 LLM → 执行工具 → 再发"的循环。理解它,你就理解了"agent 到底是什么"。第 5 课会细读。</p>
+	</details>
+</div>
+
+<div class="task">
+	<div class="task-number">任务 3</div>
+	<p><strong>找出"可运行的扩展示例"目录。</strong><br>
+	提示:里面应有 <code>hello.ts</code>、<code>todo.ts</code>、<code>snake.ts</code>、<code>custom-provider-anthropic/</code> 等。</p>
+	<details><summary>揭晓答案</summary>
+		<p><span class="answer-path">packages/coding-agent/examples/extensions/</span></p>
+		<p><strong>为什么重要:</strong>这是扩展能力的完整菜单,也是你的模板库。你想做的功能,八成在这里能找到模仿对象。其 <a href="../../../packages/coding-agent/examples/extensions/README.md">README</a> 值得通读一遍(今天先收藏,不着急)。</p>
+	</details>
+</div>
+
+<div class="task">
+	<div class="task-number">任务 4</div>
+	<p><strong>找出"扩展开发文档"。</strong><br>
+	提示:在 <code>packages/coding-agent/docs/</code> 下,文件名是 <code>extensions</code> 或 <code>custom-provider</code> 开头。</p>
+	<details><summary>揭晓答案</summary>
+		<p><span class="answer-path">packages/coding-agent/docs/extensions.md</span></p>
+		<p><strong>为什么重要:</strong>这是扩展开发的权威文档,来自源码仓库(比 pi.dev 网站上的滞后版本更可信)。本课的推荐阅读就是它。</p>
+	</details>
+</div>
+
+<p>4 个都找到了?你已经会在这个仓库里"按图索骥"了——这就是开发者读陌生代码库的第一项技能。</p>
+
+<h2>4 · 自检</h2>
+<p>扩展有哪两种加载方式?(来自 <a href="../../../packages/coding-agent/examples/extensions/README.md">examples README</a> 开头)</p>
+
+<div class="quiz" id="quiz">
+	<button class="quiz-option" data-correct="true">A. 参数指定,或放扩展目录</button>
+	<button class="quiz-option">B. 修改源码,然后重新编译</button>
+	<button class="quiz-option">C. 环境变量,或者配置文件</button>
+	<button class="quiz-option">D. 包管理器,自动全局注册</button>
+	<p class="quiz-feedback" id="quiz-feedback" hidden></p>
+</div>
+
+<h2>5 · 推荐阅读(主资源)</h2>
+<ul>
+	<li><a href="../../../packages/coding-agent/docs/extensions.md">packages/coding-agent/docs/extensions.md</a> —— 必读。扩展开发的权威文档,今天只需浏览目录结构,记住"文档在仓库里"这个事实。</li>
+	<li><a href="https://pi.dev/docs/latest">pi.dev/docs/latest</a> —— 官方在线文档,产品用法层面。</li>
+</ul>
+
+<h2>6 · 下一课预告</h2>
+<p><strong>TypeScript 最小阅读集合。</strong>pi 的源码全是 TypeScript,不懂类型标注就读不懂。但我们只学"读"需要的最小集合,不学写——目标是让你能看懂 <code>agent-loop.ts</code> 里的类型声明。</p>
+
+<h2>7 · 向老师提问</h2>
+<p>任何不清楚的地方,直接问我。好问题示例:"扩展系统到底能挂哪些点?""三层之间怎么通信?""自定义 provider 和自定义工具,哪个先学?"</p>
+
+<footer class="lesson-footer">
+	<p>本课引用:仓库 <a href="../../../README.md">README</a> · <a href="../../../packages/coding-agent/examples/extensions/README.md">examples/extensions/README.md</a> · <a href="../../../packages/coding-agent/docs/extensions.md">docs/extensions.md</a> · <a href="../reference/glossary.html">术语表</a></p>
+</footer>
+
+<script>
+(function () {
+	var quiz = document.getElementById("quiz");
+	var feedback = document.getElementById("quiz-feedback");
+	quiz.addEventListener("click", function (e) {
+		var btn = e.target.closest(".quiz-option");
+		if (!btn || btn.classList.contains("correct") || btn.classList.contains("wrong")) return;
+		var correct = btn.dataset.correct === "true";
+		btn.classList.add(correct ? "correct" : "wrong");
+		quiz.querySelectorAll(".quiz-option:not(." + (correct ? "correct" : "wrong") + ")").forEach(function (b) {
+			if (b !== btn) b.classList.add(correct ? "wrong" : "correct");
+		});
+		feedback.hidden = false;
+		feedback.textContent = correct
+			? "正确。--extension 参数加载单个文件;复制进扩展目录(如 ~/.pi/agent/extensions/)会被自动发现。"
+			: "不对。答案是 A。扩展是加载进 pi 运行时的代码,不需要改源码重编译,也不用环境变量。";
+	});
+})();
+</script>
+
+</body>
+</html>

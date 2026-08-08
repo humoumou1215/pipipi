@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>术语表 · pi 拓展开发</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+
+<header class="lesson-header">
+	<div class="lesson-meta">参考文档 · 术语表</div>
+	<h1 class="lesson-title">术语表</h1>
+	<p class="lesson-sub">本课程统一术语。所有课程与参考文档都遵循这里的定义。</p>
+</header>
+
+<dl>
+	<dt><strong>LLM provider(提供商)</strong></dt>
+	<dd>一家模型服务商(OpenAI、Anthropic、Google…)。在 pi 中,每个 provider 是 <code>packages/ai/src/providers/</code> 下的一个实现,负责把统一的调用翻译成该厂商的 API 请求。</dd>
+
+	<dt><strong>model(模型)</strong></dt>
+	<dd>provider 提供的一个具体模型(gpt-4o、claude-sonnet-4-5…)。pi 里 <code>models.generated.ts</code> 存有所有已知模型的元数据。</dd>
+
+	<dt><strong>agent loop(agent 循环)</strong></dt>
+	<dd>agent 的核心循环:把对话发给 LLM → 模型返回文本或工具调用 → 执行工具、把结果放回对话 → 再发给 LLM,直到模型给出最终答复。<code>packages/agent/src/agent-loop.ts</code> 是其实现。</dd>
+
+	<dt><strong>tool calling(工具调用)</strong></dt>
+	<dd>LLM 接口允许模型"请求"调用你提供的函数(如读文件、跑命令)。模型不执行,只输出参数;由你的代码执行并把结果送回对话。</dd>
+
+	<dt><strong>streaming(流式)</strong></dt>
+	<dd>LLM 逐 token 返回输出,而不是一次性给完整回答。是打字机效果的基础,也是长回答等待时间不被感知的关键。</dd>
+
+	<dt><strong>context(上下文窗口)</strong></dt>
+	<dd>一次对话中模型能"看到"的 token 上限。超过就需要压缩(compaction)或丢弃。</dd>
+
+	<dt><strong>extension(扩展)</strong></dt>
+	<dd>一段在 pi 运行时加载的代码(一个 TS 文件或一个 npm 包),通过扩展点挂进 coding-agent:自定义工具、命令、提供商、UI、生命周期钩子等。<code>packages/coding-agent/examples/extensions/</code> 是可运行的示例。</dd>
+
+	<dt><strong>hook / 扩展点</strong></dt>
+	<dd>扩展系统留给扩展"挂钩"的位置(如 <code>session_start</code>、<code>model_select</code>、<code>input</code> 事件)。扩展声明自己监听哪些点。</dd>
+
+	<dt><strong>ctx(扩展上下文)</strong></dt>
+	<dd>扩展函数收到的上下文对象,提供与 pi 交互的能力:注册工具、读配置、调用 UI(<code>ctx.ui.select()</code> 等)、访问对话状态。</dd>
+
+	<dt><strong>EventStream(事件流)</strong></dt>
+	<dd>pi 各层传递异步事件的方式(流式回调),agent loop 的输出、LLM 的流式响应都用它承载。</dd>
+</dl>
+
+<p class="lesson-footer">术语不清晰时,回到本页。也欢迎直接问老师(agent)。</p>
+
+</body>
+</html>
