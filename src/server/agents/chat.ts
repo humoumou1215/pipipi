@@ -1,10 +1,4 @@
-import {
-	AgentHarness,
-	createBashTool,
-	createEditTool,
-	createReadTool,
-	createWriteTool,
-} from "@earendil-works/pi-agent-core";
+import { AgentHarness, createEditTool, createReadTool, createWriteTool } from "@earendil-works/pi-agent-core";
 import { NodeExecutionEnv } from "@earendil-works/pi-agent-core/node";
 import type { Model } from "@earendil-works/pi-ai";
 import { EventBus } from "../events/event-bus";
@@ -12,6 +6,7 @@ import { SseHub } from "../events/sse";
 import type { BoardRuntime } from "../runtime";
 import type { RoleRow } from "../db/board-db";
 import { createBoardTools, type BoardToolContext } from "./board-tools";
+import { createSafeBashTool } from "./safety";
 import { loadRoleResources } from "./resources";
 import { buildRoleSystemPrompt, describeTools } from "./system-prompt";
 
@@ -105,7 +100,7 @@ export class ChatSession {
 		const resources = await loadRoleResources(this.role.roleDir, this.runtime.dir);
 		const env = new NodeExecutionEnv({ cwd: this.runtime.dir });
 		const boardTools = createBoardTools();
-		const allTools = [...boardTools, createReadTool(), createWriteTool(), createEditTool(), createBashTool()];
+		const allTools = [...boardTools, createReadTool(), createWriteTool(), createEditTool(), createSafeBashTool()];
 		const toolContext = (): BoardToolContext => ({
 			env,
 			store: this.runtime.store,
@@ -130,7 +125,7 @@ export class ChatSession {
 			thinkingLevel: (this.role.thinkingLevel as "off" | "low" | "medium" | "high") ?? "off",
 			tools: allTools,
 			toolContext,
-			resources: { skills: resources.skills },
+			resources: { skills: resources.skills, promptTemplates: resources.promptTemplates },
 			systemPrompt,
 			streamOptions: { cacheRetention: "long" },
 		});

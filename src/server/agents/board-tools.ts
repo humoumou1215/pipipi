@@ -389,6 +389,55 @@ export function createBoardTools(): BoardTool[] {
 			},
 		},
 		{
+			name: "git_status",
+			label: "Git Status",
+			description:
+				"Show the git working tree status in the project directory (branch + short status). Useful before committing or to see what changed.",
+			parameters: Type.Object({}),
+			execute: async (_toolCallId, _params, _signal, _onUpdate, context) => {
+				const c = context as ToolCtx;
+				const r = await c.env.exec("git status --short --branch", { timeout: 30 });
+				return {
+					content: [{ type: "text", text: r.ok ? `${r.value.stdout}\n${r.value.stderr}` : `git failed: ${r.error?.message ?? ""}` }],
+					details: {},
+				};
+			},
+		},
+		{
+			name: "git_diff",
+			label: "Git Diff",
+			description:
+				"Show uncommitted changes (stat + full diff for the given path, or all paths). Use before reporting what you changed.",
+			parameters: Type.Object({
+				path: Type.Optional(Type.String({ description: "Limit diff to this path" })),
+			}),
+			execute: async (_toolCallId, params, _signal, _onUpdate, context) => {
+				const c = context as ToolCtx;
+				const p = params as { path?: string };
+				const target = p.path ? ` -- "${p.path.replace(/"/g, "\"")}"` : "";
+				const r = await c.env.exec(`git diff --stat HEAD${target}`, { timeout: 30 });
+				if (!r.ok) return { content: [{ type: "text", text: `git failed: ${r.error?.message ?? ""}` }], details: {} };
+				return { content: [{ type: "text", text: r.value.stdout.slice(0, 8000) || "(no changes)" }], details: {} };
+			},
+		},
+		{
+			name: "git_log",
+			label: "Git Log",
+			description: "Show recent commit history (one line per commit).",
+			parameters: Type.Object({
+				n: Type.Optional(Type.Integer({ description: "Number of commits (default 15)" })),
+			}),
+			execute: async (_toolCallId, params, _signal, _onUpdate, context) => {
+				const c = context as ToolCtx;
+				const p = params as { n?: number };
+				const r = await c.env.exec(`git log --oneline -${Math.min(p.n ?? 15, 50)}`, { timeout: 30 });
+				return {
+					content: [{ type: "text", text: r.ok ? r.value.stdout.slice(0, 4000) : `git failed: ${r.error?.message ?? ""}` }],
+					details: {},
+				};
+			},
+		},
+		{
 			name: "read_scratchpad",
 			label: "Read Scratchpad",
 			description:

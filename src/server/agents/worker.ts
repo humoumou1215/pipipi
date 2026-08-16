@@ -1,7 +1,6 @@
 import {
 	AgentHarness,
 	type AgentMessage,
-	createBashTool,
 	createEditTool,
 	createReadTool,
 	createWriteTool,
@@ -12,6 +11,7 @@ import type { Model } from "@earendil-works/pi-ai";
 import type { BoardRuntime } from "../runtime";
 import type { RoleRow } from "../db/board-db";
 import { createBoardTools, type BoardToolContext } from "./board-tools";
+import { createSafeBashTool } from "./safety";
 import { compactMemoryFile } from "./memory";
 import { loadRoleResources } from "./resources";
 import { buildRoleSystemPrompt, describeTools } from "./system-prompt";
@@ -284,7 +284,7 @@ export class InstanceWorker {
 			createReadTool(),
 			createWriteTool(),
 			createEditTool(),
-			createBashTool(),
+			createSafeBashTool(),
 		];
 		const allTools = [...boardTools, ...fileTools];
 		const toolContext = (): BoardToolContext => ({
@@ -311,7 +311,7 @@ export class InstanceWorker {
 			thinkingLevel: this.thinkingLevel(),
 			tools: allTools,
 			toolContext,
-			resources: { skills: resources.skills },
+			resources: { skills: resources.skills, promptTemplates: resources.promptTemplates },
 			systemPrompt,
 			streamOptions: { cacheRetention: "long" },
 		});

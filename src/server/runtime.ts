@@ -7,7 +7,7 @@ import {
 } from "@earendil-works/pi-agent-core";
 import { NodeExecutionEnv } from "@earendil-works/pi-agent-core/node";
 import { createModels, type Models } from "@earendil-works/pi-ai";
-import { builtinModels } from "@earendil-works/pi-ai/providers/all";
+import { opencodeGoProvider } from "@earendil-works/pi-ai/providers/opencode-go";
 import { getConfig, dirIdOf, globalRolesDir, projectRolesDir, projectSessionsDir, type PipipiConfig } from "./config";
 import { GlobalDb } from "./db/global-db";
 import { BoardDb } from "./db/board-db";
@@ -144,10 +144,12 @@ export function getServerState(): ServerState {
 
 	const config = getConfig();
 	const globalDb = GlobalDb.open(config.dataDir);
-	// 内置 provider 目录(与 pi CLI 一致);开发可用 PIPIPI_MOCK_PROVIDER=1 切换 mock
-	const models = process.env.PIPIPI_MOCK_PROVIDER === "1" ? createModels() : builtinModels();
+	// 显式注册所需 provider(避免全量 builtinModels 的动态导入在打包后失效)
+	const models = createModels();
 	if (process.env.PIPIPI_MOCK_PROVIDER === "1") {
 		models.setProvider(createMockProvider());
+	} else {
+		models.setProvider(opencodeGoProvider());
 	}
 	state = { config, globalDb, models, runtimes: new Map() };
 	holder[GLOBAL_KEY] = state;

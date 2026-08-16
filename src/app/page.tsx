@@ -8,6 +8,7 @@ import { applyBoardEvent, emptyBoardState, useBoardEvents, type BoardEvent, type
 import BoardView from "@/components/BoardView";
 import CardDrawer from "@/components/CardDrawer";
 import AgentPanel from "@/components/AgentPanel";
+import NotificationBell from "@/components/NotificationBell";
 
 const DIR_KEY = "pipipi.dir";
 
@@ -20,7 +21,13 @@ export default function BoardPage() {
 	const [showNewCard, setShowNewCard] = useState(false);
 	const [newTitle, setNewTitle] = useState("");
 	const [newDesc, setNewDesc] = useState("");
+	const [newPriority, setNewPriority] = useState(0);
+	const [newTags, setNewTags] = useState("");
+	const [newAssignee, setNewAssignee] = useState("");
+	const [newApprover, setNewApprover] = useState<number | "">("");
+	const [newStages, setNewStages] = useState<string>("");
 	const [error, setError] = useState("");
+	const [approvers, setApprovers] = useState<Array<{ id: number; username: string; displayName: string }>>([]);
 	const boardRef = useRef(board);
 	boardRef.current = board;
 
@@ -43,6 +50,9 @@ export default function BoardPage() {
 		api<User>("/api/auth/me")
 			.then(setUser)
 			.catch(() => router.push("/login"));
+		api<Array<{ id: number; username: string; displayName: string }>>("/api/users")
+			.then(setApprovers)
+			.catch(() => {});
 	}, [router]);
 
 	useEffect(() => {
@@ -97,10 +107,24 @@ export default function BoardPage() {
 			const card = await post<CardSummary>(`/api/dirs/${dirId}/cards`, {
 				title: newTitle,
 				description: newDesc,
+				priority: newPriority,
+				tags: newTags.split(",").map((t) => t.trim()).filter(Boolean),
+				assigneeRole: newAssignee || null,
+				reviewApprover: newApprover === "" ? undefined : Number(newApprover),
+				stages: newStages
+					.split(",")
+					.map((r) => r.trim())
+					.filter(Boolean)
+					.map((roleId) => ({ roleId, title: roleId })),
 				columnId,
 			});
 			setNewTitle("");
 			setNewDesc("");
+			setNewPriority(0);
+			setNewTags("");
+			setNewAssignee("");
+			setNewApprover("");
+			setNewStages("");
 			setShowNewCard(false);
 			setBoard((prev) =>
 				prev.snapshot ? { ...prev, snapshot: { ...prev.snapshot, cards: [...prev.snapshot.cards, card] } } : prev,
@@ -119,7 +143,6 @@ export default function BoardPage() {
 		}
 	};
 
-	const unread = board.notifications.filter((n) => n.read === 0).length;
 
 	return (
 		<div className="flex h-screen flex-col">
@@ -145,8 +168,9 @@ export default function BoardPage() {
 				>
 					+ card
 				</button>
-				<span className="ml-auto text-xs text-neutral-500">
-					🔔 {unread} · {user?.displayName ?? user?.username}
+				<span className="ml-auto flex items-center gap-2 text-xs text-neutral-500">
+					<NotificationBell dirId={dirId} onOpenCard={(cardId) => setBoard((prev) => ({ ...prev, selectedCardId: cardId }))} />
+					{user?.displayName ?? user?.username}
 				</span>
 				<button
 					className="rounded px-2 py-1 text-xs text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200"
@@ -177,6 +201,55 @@ export default function BoardPage() {
 						placeholder="Description"
 						rows={2}
 						className="mb-2 w-full resize-none rounded border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-sm"
+					/>
+					<div className="mb-2 grid grid-cols-2 gap-2">
+						<input
+							type="number"
+							min={0}
+							max={4}
+							value={newPriority}
+							onChange={(e) => setNewPriority(Number(e.target.value))}
+							placeholder="Priority 0-4"
+							className="rounded border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-sm"
+						/>
+						<input
+							value={newTags}
+							onChange={(e) => setNewTags(e.target.value)}
+							placeholder="Tags (comma separated)"
+							className="rounded border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-sm"
+						/>
+					</div>
+					<div className="mb-2 grid grid-cols-2 gap-2">
+						<select
+							value={newAssignee}
+							onChange={(e) => setNewAssignee(e.target.value)}
+							className="rounded border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-sm"
+						>
+							<option value="">Assignee role…</option>
+							{board.snapshot?.roles.map((r) => (
+								<option key={r.id} value={r.id}>
+									{r.name}
+								</option>
+							))}
+						</select>
+						<select
+							value={newApprover}
+							onChange={(e) => setNewApprover(e.target.value === "" ? "" : Number(e.target.value))}
+							className="rounded border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-sm"
+						>
+							<option value="">Approver (default: you)</option>
+							{approvers.map((u) => (
+								<option key={u.id} value={u.id}>
+									{u.displayName ?? u.username}
+								</option>
+							))}
+						</select>
+					</div>
+					<input
+						value={newStages}
+						onChange={(e) => setNewStages(e.target.value)}
+						placeholder="Stages: role ids, comma separated (e.g. dev, qa)"
+						className="mb-2 w-full rounded border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-sm"
 					/>
 					<button
 						className="rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50"

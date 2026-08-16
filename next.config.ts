@@ -9,12 +9,8 @@ const nextConfig: NextConfig = {
 	reactStrictMode: true,
 	turbopack: { root: projectRoot },
 	outputFileTracingRoot: projectRoot,
-	serverExternalPackages: [
-		"@earendil-works/pi-agent-core",
-		"@earendil-works/pi-agent-core/node",
-		"@earendil-works/pi-ai",
-		"@earendil-works/pi-coding-agent",
-	],
+	// 注:pi-* 包为纯 JS ESM,默认打进 bundle(不 serverExternalPackages,
+	// 避免 turbopack 生成 hash 别名导致安装后运行时找不到模块)
 };
 
 export default nextConfig;

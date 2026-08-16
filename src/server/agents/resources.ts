@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { NodeExecutionEnv } from "@earendil-works/pi-agent-core/node";
-import { loadSkills, type Skill } from "@earendil-works/pi-agent-core";
+import { loadPromptTemplates, loadSkills, type PromptTemplate, type Skill } from "@earendil-works/pi-agent-core";
 import type { BoardDb, RoleRow } from "../db/board-db";
 
 export interface RoleFileConfig {
@@ -22,6 +22,7 @@ export interface RoleResources {
 	memoryMd: string;
 	appendMd: string;
 	skills: Skill[];
+	promptTemplates: PromptTemplate[];
 }
 
 /** 项目角色目录优先,回退全局模板 */
@@ -61,7 +62,11 @@ export async function loadRoleResources(
 	if (!config) throw new Error(`role.json missing in ${roleDir}`);
 	const env = new NodeExecutionEnv({ cwd: workCwd });
 	const skillsDir = join(roleDir, "skills");
+	const promptsDir = join(roleDir, "prompts");
 	const loaded = existsSync(skillsDir) ? await loadSkills(env, skillsDir) : { skills: [] as Skill[] };
+	const prompts = existsSync(promptsDir)
+		? await loadPromptTemplates(env, promptsDir)
+		: { promptTemplates: [] as PromptTemplate[] };
 	await env.cleanup();
 	return {
 		roleDir,
@@ -70,6 +75,7 @@ export async function loadRoleResources(
 		memoryMd: readOptional(join(roleDir, "memory.md")),
 		appendMd: readOptional(join(roleDir, "append_system.md")),
 		skills: loaded.skills,
+		promptTemplates: prompts.promptTemplates,
 	};
 }
 

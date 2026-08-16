@@ -1,19 +1,19 @@
 import { hashPassword } from "@/server/auth";
 import { getServerState } from "@/server/runtime";
-import { handle, json, requireAdmin } from "@/server/api-helpers";
+import { handle, json, requireAdmin, requireUser } from "@/server/api-helpers";
 
 export const dynamic = "force-dynamic";
 
+/** 用户列表:登录用户可见基础信息(验收人选择用);仅管理员可见 isAdmin */
 export async function GET() {
 	return handle(async () => {
-		await requireAdmin();
+		const me = await requireUser();
 		const state = getServerState();
 		const users = state.globalDb.listUsers().map((u) => ({
 			id: u.id,
 			username: u.username,
 			displayName: u.displayName,
-			isAdmin: u.isAdmin === 1,
-			createdAt: u.createdAt,
+			...(me.isAdmin ? { isAdmin: u.isAdmin === 1 } : {}),
 		}));
 		return json(users);
 	});

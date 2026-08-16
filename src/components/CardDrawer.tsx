@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Activity, CardDetail, User } from "@/lib/types";
-import { api, post } from "@/lib/api";
+import { api, post, put } from "@/lib/api";
 
 interface Props {
 	dirId: string;
@@ -34,9 +34,16 @@ const ACTIVITY_LABELS: Record<string, string> = {
 export default function CardDrawer({ dirId, cardId, user, roles, columns, onClose, onChanged }: Props) {
 	const [detail, setDetail] = useState<CardDetail | null>(null);
 	const [activities, setActivities] = useState<Activity[]>([]);
+	const [users, setUsers] = useState<Array<{ id: number; username: string; displayName: string }>>([]);
 	const [comment, setComment] = useState("");
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState("");
+	const [editing, setEditing] = useState(false);
+	const [editTitle, setEditTitle] = useState("");
+	const [editDesc, setEditDesc] = useState("");
+	const [editPriority, setEditPriority] = useState(0);
+	const [editTags, setEditTags] = useState("");
+	const [newChecklist, setNewChecklist] = useState("");
 
 	const load = useCallback(async () => {
 		try {
@@ -50,6 +57,9 @@ export default function CardDrawer({ dirId, cardId, user, roles, columns, onClos
 
 	useEffect(() => {
 		void load();
+		void api<Array<{ id: number; username: string; displayName: string }>>("/api/users")
+			.then(setUsers)
+			.catch(() => {});
 	}, [load]);
 
 	if (!detail) {
@@ -61,6 +71,34 @@ export default function CardDrawer({ dirId, cardId, user, roles, columns, onClos
 	}
 
 	const canReview = user.isAdmin || detail.reviewApprover === user.id;
+
+	const startEdit = () => {
+		setEditTitle(detail.title);
+		setEditDesc(detail.description);
+		setEditPriority(detail.priority);
+		setEditTags(detail.tags.join(", "));
+		setEditing(true);
+	};
+
+	const saveEdit = async () => {
+		setBusy(true);
+		try {
+			await put(`/api/dirs/${dirId}/cards/${cardId}`, {
+				title: editTitle,
+				description: editDesc,
+				priority: editPriority,
+				tags: editTags.split(",").map((t) => t.trim()).filter(Boolean),
+				version: detail.version,
+			});
+			setEditing(false);
+			await load();
+			onChanged();
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "save failed");
+		} finally {
+			setBusy(false);
+		}
+	};
 
 	const submitComment = async () => {
 		if (!comment.trim()) return;
@@ -128,11 +166,78 @@ export default function CardDrawer({ dirId, cardId, user, roles, columns, onClos
 		}
 	};
 
+	const changeApprover = async (userId: number) => {
+		setBusy(true);
+		try {
+			await put(`/api/dirs/${dirId}/cards/${cardId}`, { reviewApprover: userId, version: detail.version });
+			await load();
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "approver change failed");
+		} finally {
+			setBusy(false);
+		}
+	};
+
+	const addChecklist = async () => {
+		if (!newChecklist.trim()) return;
+		setBusy(true);
+		try {
+			await post(`/api/dirs/${dirId}/cards/${cardId}/checklist`, { text: newChecklist });
+			setNewChecklist("");
+			await load();
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "checklist failed");
+		} finally {
+			setBusy(false);
+		}
+	};
+
+	const toggleChecklist = async (itemId: number, done: number) => {
+		await put(`/api/dirs/${dirId}/cards/${cardId}/checklist/${itemId}`, { done: done === 0 }).catch((err) =>
+			setError(err instanceof Error ? err.message : "checklist failed"),
+		);
+		await load();
+	};
+
+	const block = async (blocked: boolean) => {
+		const reason = blocked ? (window.prompt("Block reason:") ?? "") : "";
+		setBusy(true);
+		try {
+			await post(`/api/dirs/${dirId}/cards/${cardId}/block`, { action: blocked ? "block" : "unblock", reason });
+			await load();
+			onChanged();
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "block failed");
+		} finally {
+			setBusy(false);
+		}
+	};
+
+	const approver = users.find((u) => u.id === detail.reviewApprover);
+
 	return (
-		<div className="fixed inset-y-0 right-0 z-10 flex w-[26rem] flex-col border-l border-neutral-800 bg-neutral-900">
+		<div className="fixed inset-y-0 right-0 z-10 flex w-[30rem] flex-col border-l border-neutral-800 bg-neutral-900">
 			<div className="flex items-center gap-2 border-b border-neutral-800 px-4 py-3">
-				<h2 className="min-w-0 flex-1 truncate text-sm font-semibold">{detail.title}</h2>
+				{editing ? (
+					<input
+						value={editTitle}
+						onChange={(e) => setEditTitle(e.target.value)}
+						className="min-w-0 flex-1 rounded border border-neutral-700 bg-neutral-800 px-2 py-1 text-sm"
+					/>
+				) : (
+					<h2 className="min-w-0 flex-1 truncate text-sm font-semibold">{detail.title}</h2>
+				)}
 				<span className="text-xs text-neutral-500">#{detail.id}</span>
+				{!editing && (
+					<button className="rounded px-1.5 py-1 text-xs text-neutral-400 hover:bg-neutral-800" onClick={startEdit}>
+						edit
+					</button>
+				)}
+				{editing && (
+					<button className="rounded bg-blue-600 px-2 py-1 text-xs text-white" onClick={() => void saveEdit()}>
+						save
+					</button>
+				)}
 				<button onClick={onClose} className="rounded px-2 py-1 text-neutral-400 hover:bg-neutral-800">
 					✕
 				</button>
@@ -141,8 +246,44 @@ export default function CardDrawer({ dirId, cardId, user, roles, columns, onClos
 			<div className="flex-1 overflow-y-auto p-4">
 				{error && <p className="mb-3 rounded bg-red-950/60 px-3 py-2 text-xs text-red-300">{error}</p>}
 
-				{detail.description && (
-					<p className="mb-4 whitespace-pre-wrap text-sm text-neutral-300">{detail.description}</p>
+				<div className="mb-3 flex flex-wrap items-center gap-2 text-[10px] text-neutral-500">
+					<span className="rounded bg-neutral-800 px-1.5 py-0.5">status: {detail.status}</span>
+					<span className="rounded bg-neutral-800 px-1.5 py-0.5">assignee: {detail.assigneeRole ?? "—"}</span>
+					<span className="rounded bg-neutral-800 px-1.5 py-0.5">
+						approver: {approver?.displayName ?? approver?.username ?? "—"}
+					</span>
+					<span className="rounded bg-neutral-800 px-1.5 py-0.5">P{detail.priority}</span>
+				</div>
+
+				{editing ? (
+					<div className="mb-4 space-y-2">
+						<textarea
+							value={editDesc}
+							onChange={(e) => setEditDesc(e.target.value)}
+							rows={5}
+							className="w-full resize-y rounded border border-neutral-700 bg-neutral-800 px-2 py-1.5 text-sm"
+						/>
+						<div className="flex gap-2">
+							<input
+								type="number"
+								min={0}
+								max={4}
+								value={editPriority}
+								onChange={(e) => setEditPriority(Number(e.target.value))}
+								className="w-20 rounded border border-neutral-700 bg-neutral-800 px-2 py-1 text-xs"
+							/>
+							<input
+								value={editTags}
+								onChange={(e) => setEditTags(e.target.value)}
+								placeholder="tags, comma separated"
+								className="flex-1 rounded border border-neutral-700 bg-neutral-800 px-2 py-1 text-xs"
+							/>
+						</div>
+					</div>
+				) : (
+					detail.description && (
+						<p className="mb-4 whitespace-pre-wrap text-sm text-neutral-300">{detail.description}</p>
+					)
 				)}
 
 				{detail.stages.length > 0 && (
@@ -163,6 +304,39 @@ export default function CardDrawer({ dirId, cardId, user, roles, columns, onClos
 						))}
 					</div>
 				)}
+
+				{detail.checklist.length > 0 && (
+					<div className="mb-4">
+						<h3 className="mb-1 text-xs font-medium uppercase text-neutral-500">Checklist</h3>
+						{detail.checklist.map((item) => (
+							<label key={item.id} className="mb-1 flex cursor-pointer items-center gap-2 text-xs">
+								<input
+									type="checkbox"
+									checked={item.done === 1}
+									onChange={() => void toggleChecklist(item.id, item.done)}
+								/>
+								<span className={item.done === 1 ? "text-neutral-600 line-through" : "text-neutral-300"}>
+									{item.text}
+								</span>
+							</label>
+						))}
+					</div>
+				)}
+
+				<div className="mb-4 flex gap-2">
+					<input
+						value={newChecklist}
+						onChange={(e) => setNewChecklist(e.target.value)}
+						placeholder="Add checklist item…"
+						className="flex-1 rounded border border-neutral-700 bg-neutral-800 px-2 py-1 text-xs"
+					/>
+					<button
+						className="rounded bg-neutral-700 px-2 py-1 text-xs text-neutral-200 hover:bg-neutral-600"
+						onClick={() => void addChecklist()}
+					>
+						add
+					</button>
+				</div>
 
 				<div className="mb-4">
 					<h3 className="mb-1 text-xs font-medium uppercase text-neutral-500">Actions</h3>
@@ -199,11 +373,33 @@ export default function CardDrawer({ dirId, cardId, user, roles, columns, onClos
 								</option>
 							))}
 						</select>
+						<select
+							className="rounded border border-neutral-700 bg-neutral-800 px-2 py-1 text-xs"
+							value=""
+							onChange={(e) => {
+								if (e.target.value) void changeApprover(Number(e.target.value));
+							}}
+						>
+							<option value="" disabled>
+								Set approver…
+							</option>
+							{users.map((u) => (
+								<option key={u.id} value={u.id}>
+									{u.displayName ?? u.username}
+								</option>
+							))}
+						</select>
 						<button
 							className="rounded border border-neutral-700 px-2 py-1 text-xs hover:bg-neutral-800"
 							onClick={() => void wake(detail.assigneeRole)}
 						>
 							Wake
+						</button>
+						<button
+							className="rounded border border-neutral-700 px-2 py-1 text-xs hover:bg-neutral-800"
+							onClick={() => void block(detail.status !== "blocked")}
+						>
+							{detail.status === "blocked" ? "Unblock" : "Block"}
 						</button>
 						{canReview && detail.status === "review" && (
 							<>

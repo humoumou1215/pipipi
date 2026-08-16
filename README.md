@@ -11,6 +11,21 @@ npm install --include=dev
 npm run dev            # http://127.0.0.1:3099
 ```
 
+### 部署(npm 包形态,参照 pi-web)
+
+```bash
+npm run build           # NODE_ENV=production 下构建
+npm pack                # 产出 pipipi-<ver>.tgz
+# 在目标机器安装并运行
+npm install -g pipipi-<ver>.tgz
+pipipi -H 0.0.0.0 -p 3000 --dir /path/to/board \
+  --mock                # 无 API key 时用内置 mock provider
+# 或注入真实 key
+OPENCODE_API_KEY=<key> pipipi -H 0.0.0.0 -p 3000 --dir /path/to/board
+```
+
+容器化见 `docs/containerization.md`(含 Dockerfile)。
+
 环境变量:
 
 | 变量 | 说明 |

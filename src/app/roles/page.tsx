@@ -26,6 +26,7 @@ export default function RolesPage() {
 	const [roles, setRoles] = useState<Array<{ id: string; name: string; kind: string; model: string | null; instanceCount: number }>>([]);
 	const [editing, setEditing] = useState<RoleDetail | null>(null);
 	const [message, setMessage] = useState("");
+	const [scope, setScope] = useState<"project" | "global">("project");
 
 	useEffect(() => {
 		api<User>("/api/auth/me")
@@ -75,7 +76,7 @@ export default function RolesPage() {
 		if (!id) return;
 		try {
 			await post(`/api/dirs/${dirId}/roles/${id}`, {
-				scope: "project",
+				scope,
 				name: id,
 				model: "opencode-go/deepseek-v4-flash",
 				instanceCount: 1,
@@ -128,6 +129,15 @@ export default function RolesPage() {
 							{d.name}
 						</option>
 					))}
+				</select>
+				<select
+					className="rounded border border-neutral-700 bg-neutral-800 px-2 py-1 text-xs"
+					value={scope}
+					onChange={(e) => setScope(e.target.value as "project" | "global")}
+					title="Role template scope: project (this board) or global (~/.pipipi/roles, shared across boards)"
+				>
+					<option value="project">project</option>
+					<option value="global">global</option>
 				</select>
 				<button className="rounded bg-blue-600 px-2.5 py-1 text-xs text-white hover:bg-blue-500" onClick={() => void scaffold()}>
 					+ role
@@ -208,6 +218,7 @@ export default function RolesPage() {
 								</label>
 							</div>
 
+							<p className="mb-2 text-[10px] text-neutral-500">dir: {editing.roleDir}</p>
 							{(["agent.md", "memory.md", "append_system.md"] as const).map((file) => (
 								<div key={file} className="mb-3">
 									<label className="text-xs text-neutral-500">
