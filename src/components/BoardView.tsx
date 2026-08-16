@@ -10,7 +10,7 @@ interface Props {
 
 export default function BoardView({ board, onMoveCard, onOpenCard }: Props) {
 	return (
-		<div className="flex h-full gap-3 overflow-x-auto p-3">
+		<div className="flex h-full gap-2 overflow-x-auto p-2">
 			{board.columns.map((column) => (
 				<ColumnView
 					key={column.id}
@@ -40,7 +40,7 @@ function ColumnView({
 }) {
 	return (
 		<div
-			className="flex min-w-72 flex-col rounded-lg border border-neutral-800 bg-neutral-900/60"
+			className="flex min-w-48 flex-1 flex-col rounded-lg border border-neutral-800 bg-neutral-900/60"
 			onDragOver={(e) => e.preventDefault()}
 			onDrop={(e) => {
 				e.preventDefault();
@@ -48,14 +48,14 @@ function ColumnView({
 				if (Number.isInteger(id) && id > 0) onMoveCard(id, column.id);
 			}}
 		>
-			<div className="flex items-center justify-between px-3 py-2">
+			<div className="flex items-center justify-between px-2.5 py-1.5">
 				<span className="text-sm font-medium text-neutral-300">
 					{column.name}
 					{column.workflowRole && <span className="ml-2 text-xs text-blue-400">@ {column.workflowRole}</span>}
 				</span>
 				<span className="text-xs text-neutral-500">{cards.length}</span>
 			</div>
-			<div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2">
+			<div className="flex flex-1 flex-col gap-1.5 overflow-y-auto p-1.5">
 				{cards.map((card) => (
 					<CardItem key={card.id} card={card} instances={instances} onOpen={onOpenCard} />
 				))}
@@ -89,7 +89,7 @@ function CardItem({
 			draggable
 			onDragStart={(e) => e.dataTransfer.setData("text/plain", String(card.id))}
 			onClick={() => onOpen(card.id)}
-			className="cursor-pointer rounded border border-neutral-800 bg-neutral-900 p-2.5 hover:border-neutral-600"
+			className="cursor-pointer rounded border border-neutral-800 bg-neutral-900 p-2 hover:border-neutral-600"
 		>
 			<div className="mb-1 flex items-center gap-1.5">
 				<span className={`h-2 w-2 shrink-0 rounded-full ${STATUS_COLORS[card.status] ?? "bg-neutral-500"}`} />

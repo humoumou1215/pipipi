@@ -3,9 +3,19 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, post } from "@/lib/api";
+import { useI18n, I18nProvider } from "@/lib/i18n";
 
 export default function LoginPage() {
+	return (
+		<I18nProvider>
+			<LoginPageInner />
+		</I18nProvider>
+	);
+}
+
+function LoginPageInner() {
 	const router = useRouter();
+	const { t } = useI18n();
 	const [mode, setMode] = useState<"login" | "setup">("login");
 	const [initialized, setInitialized] = useState<boolean | null>(null);
 	const [username, setUsername] = useState("");
@@ -54,21 +64,19 @@ export default function LoginPage() {
 			<form onSubmit={submit} className="w-80 rounded-lg border border-neutral-800 bg-neutral-900 p-6">
 				<h1 className="mb-4 text-xl font-semibold">pipipi</h1>
 				{mode === "setup" && (
-					<p className="mb-4 text-sm text-neutral-400">
-						First run: create the admin account. Admin creates all other users.
-					</p>
+					<p className="mb-4 text-sm text-neutral-400">{t("login.setupTitle")}</p>
 				)}
 				{mode === "setup" && (
 					<input
 						className="mb-3 w-full rounded border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm"
-						placeholder="Display name"
+						placeholder={t("login.displayName")}
 						value={displayName}
 						onChange={(e) => setDisplayName(e.target.value)}
 					/>
 				)}
 				<input
 					className="mb-3 w-full rounded border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm"
-					placeholder="Username"
+					placeholder={t("login.username")}
 					value={username}
 					onChange={(e) => setUsername(e.target.value)}
 					autoFocus
@@ -76,7 +84,7 @@ export default function LoginPage() {
 				<input
 					className="mb-4 w-full rounded border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm"
 					type="password"
-					placeholder="Password"
+					placeholder={t("login.password")}
 					value={password}
 					onChange={(e) => setPassword(e.target.value)}
 				/>
@@ -85,7 +93,7 @@ export default function LoginPage() {
 					disabled={busy}
 					className="w-full rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50"
 				>
-					{busy ? "…" : mode === "setup" ? "Create admin" : "Login"}
+					{busy ? "…" : mode === "setup" ? t("login.createAdmin") : t("login.login")}
 				</button>
 			</form>
 		</div>

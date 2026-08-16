@@ -4,13 +4,16 @@ import type { Activity, BoardSnapshot, CardDetail, CardSummary, InstanceInfo, No
 export interface BoardState {
 	snapshot: BoardSnapshot | null;
 	selectedCardId: number | null;
+	selectedInstanceId: string | null;
+	selectedRoleId: string | null;
+	selectedFile: { path: string; name: string } | null;
 	cardDetail: CardDetail | null;
 	activities: Activity[];
 	notifications: Notification[];
 }
 
 export function emptyBoardState(): BoardState {
-	return { snapshot: null, selectedCardId: null, cardDetail: null, activities: [], notifications: [] };
+	return { snapshot: null, selectedCardId: null, selectedInstanceId: null, selectedRoleId: null, selectedFile: null, cardDetail: null, activities: [], notifications: [] };
 }
 
 export type BoardEvent =
