@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第 1 课：Pi Agent 项目全景与开发环境搭建</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="container">
+
+<h1>第 1 课：Pi Agent 项目全景与开发环境搭建</h1>
+<p class="subtitle">从鸟瞰到落地 —— 理解这个 monorepo 的构造，并成功跑起来</p>
+
+<div class="lesson-meta">
+  <div class="row"><span class="label">编号</span><span>Lesson 0001</span></div>
+  <div class="row"><span class="label">时长</span><span>约 30 分钟阅读 + 30 分钟练习</span></div>
+  <div class="row"><span class="label">前置</span><span>会用终端，知道 JS/TS 是什么</span></div>
+  <div class="row"><span class="label">目标</span><span>能描述架构 + 成功运行构建命令</span></div>
+</div>
+
+<h2>一、Pi 是什么？</h2>
+
+<p>Pi 是一个 <strong>开源 AI Agent 框架</strong>，核心产品是一个在终端中运行的 <strong>交互式编码助手 CLI</strong>（命令行工具）。你可以把它理解为：</p>
+
+<ul>
+  <li>一个能调用系统工具（读文件、写文件、跑命令）的 ChatGPT</li>
+  <li>自带终端 UI，体验比 curl 调用 API 好很多</li>
+  <li>支持 30+ 家大模型提供商（OpenAI、Anthropic、Google、DeepSeek…）</li>
+  <li>可以通过「扩展」和「技能」进行二次开发</li>
+</ul>
+
+<p>这正是我们要学习的地方 —— 因为它是可扩展的，所以值得深入代码去 <strong>定制</strong>。</p>
+
+<h2>二、什么是 Monorepo？（初学者必读）</h2>
+
+<div class="callout info">
+  <div class="title">概念解释</div>
+  <p>Monorepo = <strong>Mono（单一） + Repository（仓库）</strong>。意思是把多个逻辑独立的「包（package）」放在同一个 Git 仓库里管理，而不是每个包一个仓库。</p>
+</div>
+
+<p>Pi 项目采用的是 <strong>npm workspaces</strong> 方案（在 <code>package.json</code> 中声明）。你可以打开根目录的 <a href="file:///media/pipipi/package.json#L5-L13">package.json#L5-L13</a> 看看：</p>
+
+<pre><code>"workspaces": [
+  "packages/*",
+  "packages/storage/*",
+  "packages/coding-agent/examples/extensions/with-deps",
+  ...
+]</code></pre>
+
+<p>这告诉 npm：<code>packages/</code> 下的每个子目录都是一个独立的包，它们之间可以互相引用而不需要发布到 npm。好处：</p>
+
+<ul>
+  <li>共享代码方便（<code>pi-coding-agent</code> 直接引用 <code>pi-agent-core</code> 的源码）</li>
+  <li>统一构建、测试、版本发布</li>
+  <li>一个 PR 就能改多个包的联动代码</li>
+</ul>
+
+<h2>三、项目包架构全景</h2>
+
+<p>Pi 的代码分层非常清晰。从 <strong>用户输入</strong> 到 <strong>LLM 返回结果</strong>，请求会穿过以下几层：</p>
+
+<div class="diagram">
+  <div class="arch-layer arch-user">👤 用户（终端输入）</div>
+  <div class="arch-arrow">↓</div>
+  <div class="arch-layer arch-cli">pi-coding-agent（CLI + TUI 界面层）</div>
+  <div class="arch-arrow">↓</div>
+  <div class="arch-layer arch-core">pi-agent-core（Agent 运行时 + 工具调用 + 会话）</div>
+  <div class="arch-arrow">↓</div>
+  <div class="arch-layer arch-llm">pi-ai（多 LLM 提供商统一 API 层）</div>
+  <div class="arch-arrow">↓</div>
+  <div class="arch-layer arch-llm">🌐 OpenAI / Anthropic / Google…（真正的 LLM 服务商）</div>
+</div>
+
+<h3>各包职责表</h3>
+
+<table>
+<thead>
+<tr><th>包名</th><th>目录</th><th>一句话职责</th><th>二次开发时的用途</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>pi-coding-agent</strong></td>
+  <td><a href="file:///media/pipipi/packages/coding-agent/">packages/coding-agent/</a></td>
+  <td>CLI 入口 + 终端 UI + 所有编码工具</td>
+  <td>⭐ 添加自定义工具、扩展、技能（主战场）</td>
+</tr>
+<tr>
+  <td><strong>pi-agent-core</strong></td>
+  <td><a href="file:///media/pipipi/packages/agent/">packages/agent/</a></td>
+  <td>Agent 核心循环、会话存储、记忆压缩</td>
+  <td>⭐ 修改 Agent 行为、实现新的记忆策略</td>
+</tr>
+<tr>
+  <td><strong>pi-ai</strong></td>
+  <td><a href="file:///media/pipipi/packages/ai/">packages/ai/</a></td>
+  <td>统一调用 30+ 家 LLM Provider</td>
+  <td>⭐ 接入新的 LLM 提供商、自定义模型配置</td>
+</tr>
+<tr>
+  <td><strong>pi-tui</strong></td>
+  <td><code>packages/tui/</code></td>
+  <td>终端 UI 组件库（差异渲染）</td>
+  <td>改 UI 布局、新的终端组件</td>
+</tr>
+<tr>
+  <td><strong>pi-protocol</strong></td>
+  <td><a href="file:///media/pipipi/packages/protocol/">packages/protocol/</a></td>
+  <td>进程间通信协议（CBOR 编解码）</td>
+  <td>扩展 RPC 通信协议时需要</td>
+</tr>
+<tr>
+  <td><strong>pi-client / pi-server</strong></td>
+  <td><a href="file:///media/pipipi/packages/client/">packages/client/</a></td>
+  <td>客户端-服务端 IPC 通信</td>
+  <td>分布式部署、远程调用时需要</td>
+</tr>
+<tr>
+  <td><strong>pi-evals</strong></td>
+  <td><code>packages/evals/</code></td>
+  <td>评估框架，测 Agent 能力</td>
+  <td>验证你的改动是否提升了效果</td>
+</tr>
+</tbody>
+</table>
+
+<h3>包依赖关系（简化版）</h3>
+
+<pre><code>coding-agent  →  agent-core  →  ai
+                ↓                    ↓
+              protocol            providers (30+)
+                ↑
+            client/server</code></pre>
+
+<p>理解这个依赖图非常重要：</p>
+<ul>
+  <li>如果改 <code>ai</code> 包，<code>agent-core</code> 和 <code>coding-agent</code> 都会受影响</li>
+  <li>如果改 <code>coding-agent</code>，其他包不会被动依赖它（它是顶层包）</li>
+  <li>所以做二次开发时，优先在 <code>coding-agent</code> 层修改 —— 影响面最小</li>
+</ul>
+
+<h2>四、开发环境命令总览</h2>
+
+<p>根目录 <a href="file:///media/pipipi/package.json#L14-L49">package.json#L14-L49</a> 的 scripts 定义了所有常用命令。你 <strong>必须记住以下 4 个</strong>：</p>
+
+<table>
+<thead>
+<tr><th>命令</th><th>作用</th><th>什么时候用</th></tr>
+</thead>
+<tbody>
+<tr><td><code>npm install --ignore-scripts</code></td><td>安装依赖（不执行生命周期脚本，更安全）</td><td>第一次克隆后</td></tr>
+<tr><td><code>npm run build</code></td><td>按顺序构建所有包（tui → ai → agent → …）</td><td>改代码后、运行前</td></tr>
+<tr><td><code>npm run check</code></td><td>Lint + 格式化 + 类型检查（全通过才允许提交）</td><td>⭐ 每次改完代码必跑</td></tr>
+<tr><td><code>./test.sh</code></td><td>跑非 e2e 测试（跳过需要 API Key 的）</td><td>验证改动没有破坏功能</td></tr>
+</tbody>
+</table>
+
+<div class="callout warning">
+  <div class="title">为什么是 <code>--ignore-scripts</code>？</div>
+  <p>Pi 对供应链安全非常严格（见根 README 的 "Supply-chain hardening" 章节）。默认禁止运行依赖包的 install 脚本，防止恶意代码执行。</p>
+</div>
+
+<p>另外两个很有用的脚本：</p>
+<ul>
+  <li><code>./pi-test.sh</code> —— 从源码直接运行 pi CLI（开发时最常用），可以在任意目录调用</li>
+  <li><code>npm run build:offline</code> —— 离线构建，不联网刷新模型数据</li>
+</ul>
+
+<h2>五、构建顺序为什么重要？</h2>
+
+<p>看根 <code>package.json</code> 里的 build 脚本（<a href="file:///media/pipipi/package.json#L16-L17">第 16-17 行</a>）：</p>
+
+<pre><code>"build": "cd packages/tui && npm run build \
+  && cd ../ai && npm run build \
+  && cd ../agent && npm run build \
+  && cd ../storage/sqlite-node && npm run build \
+  && cd ../../protocol && npm run build \
+  && cd ../client && npm run build \
+  && cd ../coding-agent && npm run build \
+  && cd ../server && npm run build"</code></pre>
+
+<p>这是严格按依赖顺序的：<strong>被依赖的包先构建</strong>。如果跳过顺序直接 build coding-agent，会报错找不到其他包的编译产物（<code>dist/</code> 目录）。</p>
+
+<blockquote>
+  <strong>经验法则：</strong>如果构建报错 "找不到模块 @earendil-works/xxx"，99% 的原因是你没有按顺序构建或依赖包还没 build。跑一遍完整的 <code>npm run build</code> 就好。
+</blockquote>
+
+<h2>六、动手练习</h2>
+
+<div class="exercise">
+  <h3>🎯 练习 1：验证开发环境</h3>
+
+  <div class="step">
+    <p>在仓库根目录运行 <code>node --version</code>，确认版本 ≥ <strong>22.19.0</strong>（见根 package.json engines 字段）。如果版本不够，先升级 Node。</p>
+  </div>
+
+  <div class="step">
+    <p>运行安装依赖：<code>npm install --ignore-scripts</code></p>
+    <p>第一次会比较慢（几百个包）。如果已经装过会很快。</p>
+  </div>
+
+  <div class="step">
+    <p>尝试运行完整构建：<code>npm run build</code></p>
+    <p>观察终端输出，注意看构建顺序。</p>
+    <p>💡 提示：如果模型数据获取失败，可以先用 <code>npm run build:offline</code> 跳过。</p>
+  </div>
+
+  <div class="step">
+    <p>构建成功后，运行类型检查：<code>npm run check</code></p>
+    <p>（如果只是 clone 下来没改代码，应该全部通过。）</p>
+  </div>
+
+  <div class="step">
+    <p>运行 pi CLI 看看帮助：<code>./pi-test.sh --help</code></p>
+    <p>如果能看到帮助文本输出，环境搭建成功！🎉</p>
+  </div>
+</div>
+
+<div class="exercise">
+  <h3>🎯 练习 2：识别包的入口文件</h3>
+  <p>阅读以下 3 个文件，找出它们的 <strong>入口导出</strong>（通常是 <code>index.ts</code> 的 <code>export</code> 语句）。不需要理解每个导出的含义，只要：</p>
+  <ol>
+    <li>找到每个包的 <code>src/index.ts</code></li>
+    <li>数一下有多少个 <code>export</code> 语句</li>
+    <li>记录它们在你自己的笔记里（后续课会用到）</li>
+  </ol>
+  <ul>
+    <li><a href="file:///media/pipipi/packages/ai/src/index.ts">packages/ai/src/index.ts</a></li>
+    <li><a href="file:///media/pipipi/packages/agent/src/index.ts">packages/agent/src/index.ts</a></li>
+    <li><a href="file:///media/pipipi/packages/coding-agent/src/index.ts">packages/coding-agent/src/index.ts</a></li>
+  </ul>
+</div>
+
+<h2>七、知识点小测验</h2>
+
+<div class="quiz" id="quiz1">
+  <h3>📝 自我检测（点选答案）</h3>
+
+  <div class="question" data-correct="2">
+    <div class="q-text">Q1: Pi 项目采用什么方案管理多个包？</div>
+    <ul class="options">
+      <li data-i="0">A. Lerna</li>
+      <li data-i="1">B. TurboRepo</li>
+      <li data-i="2">C. npm workspaces</li>
+      <li data-i="3">D. Rush</li>
+    </ul>
+    <div class="feedback"></div>
+  </div>
+
+  <div class="question" data-correct="0">
+    <div class="q-text">Q2: 如果我想添加一个自定义「工具」（比如调用数据库），应该主要修改哪个包？</div>
+    <ul class="options">
+      <li data-i="0">A. pi-coding-agent</li>
+      <li data-i="1">B. pi-ai</li>
+      <li data-i="2">C. pi-protocol</li>
+      <li data-i="3">D. pi-evals</li>
+    </ul>
+    <div class="feedback"></div>
+  </div>
+
+  <div class="question" data-correct="3">
+    <div class="q-text">Q3: 构建时报错 "Cannot find module '@earendil-works/pi-ai'"，最可能的原因是？</div>
+    <ul class="options">
+      <li data-i="0">A. Node 版本太低</li>
+      <li data-i="1">B. 没有运行 npm install</li>
+      <li data-i="2">C. 拼写错误</li>
+      <li data-i="3">D. 依赖包（pi-ai）还没有先构建</li>
+    </ul>
+    <div class="feedback"></div>
+  </div>
+
+  <div class="question" data-correct="1">
+    <div class="q-text">Q4: pi-ai 包的核心职责是什么？</div>
+    <ul class="options">
+      <li data-i="0">A. 提供终端 UI 界面</li>
+      <li data-i="1">B. 统一封装多家 LLM 提供商的 API</li>
+      <li data-i="2">C. 管理会话存储和记忆压缩</li>
+      <li data-i="3">D. 运行自动化评估</li>
+    </ul>
+    <div class="feedback"></div>
+  </div>
+</div>
+
+<div class="source-box">
+  <div class="label">推荐深入阅读的一手资料</div>
+  <p>📄 <a href="file:///media/pipipi/README.md">根 README.md</a> —— 项目定位、权限说明、构建命令</p>
+  <p>📄 <a href="file:///media/pipipi/AGENTS.md">AGENTS.md</a> —— 项目开发规范（强烈建议通读，二次开发时会反复用到）</p>
+  <p>📄 <a href="file:///media/pipipi/packages/coding-agent/docs/quickstart.md">packages/coding-agent/docs/quickstart.md</a> —— 用户视角的快速开始</p>
+  <p>🌐 <a href="https://pi.dev/docs/latest">官方文档站</a> —— 最新文档</p>
+</div>
+
+<div class="nav-links">
+  <span></span>
+  <a href="#">下一课：Session 0002 — pi-coding-agent CLI 入口与启动流程 →</a>
+</div>
+
+<div class="reminder">
+  💡 有任何不理解的地方，随时向你的 AI 老师提问。学习记录会持续保存，下次继续不会重复讲已经掌握的内容。
+</div>
+
+</div>
+
+<script>
+  // Quiz logic
+  document.querySelectorAll('.quiz .question').forEach(q => {
+    const correct = parseInt(q.dataset.correct);
+    const feedback = q.querySelector('.feedback');
+    let answered = false;
+    q.querySelectorAll('.options li').forEach((li, i) => {
+      li.addEventListener('click', () => {
+        if (answered) return;
+        answered = true;
+        if (i === correct) {
+          li.classList.add('correct');
+          feedback.className = 'feedback show success';
+          feedback.style.background = '#d1fae5';
+          feedback.style.color = '#065f46';
+          feedback.textContent = '✅ 正确！';
+        } else {
+          li.classList.add('wrong');
+          q.querySelectorAll('.options li')[correct].classList.add('correct');
+          feedback.className = 'feedback show';
+          feedback.style.background = '#fee2e2';
+          feedback.style.color = '#991b1b';
+          feedback.textContent = '❌ 不对，正确答案已标出。';
+        }
+        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          if (i === correct) {
+            feedback.style.background = '#064e3b';
+            feedback.style.color = '#a7f3d0';
+          } else {
+            feedback.style.background = '#7f1d1d';
+            feedback.style.color = '#fecaca';
+          }
+        }
+      });
+    });
+  });
+</script>
+
+</body>
+</html>
