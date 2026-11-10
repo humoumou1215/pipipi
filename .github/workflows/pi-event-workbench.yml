@@ -1,0 +1,24 @@
+name: PI Event Workbench
+on:
+  push:
+    branches: [feat/pi-event-workbench-v1]
+    paths:
+      - 'pi-event-workbench/**'
+      - '.github/workflows/pi-event-workbench.yml'
+  pull_request:
+    paths:
+      - 'pi-event-workbench/**'
+      - '.github/workflows/pi-event-workbench.yml'
+jobs:
+  node-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pi-event-workbench
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm run check
+      - run: npm test
